@@ -1,0 +1,2 @@
+export const MAX_POLAR_ANGLE = Math.PI / 2 - 0.1;
+export const ASSETS_PATH = '/assets/models';

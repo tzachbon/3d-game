@@ -1,5 +1,5 @@
 import { usePlane } from '@react-three/cannon';
-import { Reflector, useProgress, useTexture } from '@react-three/drei';
+import { Reflector, useTexture } from '@react-three/drei';
 
 export function Ground() {
   const [floor, normal] = useTexture([

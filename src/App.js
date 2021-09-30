@@ -1,12 +1,21 @@
-import { Physics } from '@react-three/cannon';
-import { Loader, OrbitControls } from '@react-three/drei';
+import { Physics, useBox } from '@react-three/cannon';
+import { Loader } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import { Suspense } from 'react';
+import { Suspense, useRef } from 'react';
 import { Background } from './components/background';
 import { Ground } from './components/ground';
 import { Player } from './components/player';
 
+function Cube(props) {
+  const [ref] = useBox(() => ({ mass: 1, position: [0.5, 15, 0], ...props }));
+  return (
+    <mesh ref={ref}>
+      <boxBufferGeometry />
+    </mesh>
+  );
+}
 function App() {
+  const orbitRef = useRef();
   return (
     <Suspense fallback={null}>
       <Canvas
@@ -15,24 +24,19 @@ function App() {
         linear
         dpr={[1, 1.5]}
         camera={{
-          position: [-5, 2, 3],
+          position: [0, 0, 10],
           near: 0.01,
           far: 10000,
           fov: 70,
         }}
       >
-        <OrbitControls
-          maxPolarAngle={Math.PI / 2 - 0.1}
-          maxDistance={10}
-          enableDamping={false}
-          enablePan={false}
-        />
         <ambientLight intensity={0.5} />
         <spotLight position={[10, 55, 10]} angle={1} />
         <Physics>
+          <Cube />
           <Ground />
           <Background />
-          <Player />
+          <Player orbitRef={orbitRef} />
         </Physics>
       </Canvas>
       <Loader />
