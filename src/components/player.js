@@ -1,4 +1,3 @@
-import { useTrimesh } from '@react-three/cannon';
 import { OrbitControls, useAnimations, useFBX } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import React, { useEffect, useRef, useState } from 'react';
@@ -7,15 +6,19 @@ import * as THREE from 'three';
 import { lerp } from 'three/src/math/MathUtils';
 import { ASSETS_PATH, MAX_POLAR_ANGLE } from '../helpers';
 
+const loopAnimations = ['idle', 'walk'];
+const attackAnimations = ['small-slash', 'kick', 'spin-slash'];
+
 export function Player({ ...props }) {
   const orbitRef = useRef();
   const walkClock = useRef(new THREE.Clock());
+  const comboResetTimer = useRef();
+
   const blendDuration = 0.5;
   const [selectedAction, setSelectedAction] = useState();
   const movements = useRef([]);
-  const [combo, setCombo] = useState(0);
+  const attack = useRef({ combo: 0, isAttackInProgress: false });
   const model = useFBX(`${ASSETS_PATH}/player.fbx`);
-  console.log(model);
   const { actions, mixer } = usePlayerAnimations(model);
 
   useEffect(() => {
@@ -32,7 +35,6 @@ export function Player({ ...props }) {
     const selected = selectedAction || 'idle';
     const animation = actions[selected];
     const isIdle = selected === 'idle';
-    const loopAnimations = ['idle', 'walk'];
 
     if (!isIdle) {
       mixer.addEventListener('finished', (event) => {
@@ -42,8 +44,9 @@ export function Player({ ...props }) {
 
     animation
       ?.reset()
-      .fadeIn(blendDuration)
+      .fadeIn(loopAnimations.includes(selected) ? blendDuration : 0.1)
       .setLoop(loopAnimations.includes(selected) ? THREE.LoopRepeat : THREE.LoopOnce)
+      .setEffectiveTimeScale(loopAnimations.includes(selected) ? 1 : 1.2)
       .play();
 
     animation.clampWhenFinished = true;
@@ -54,6 +57,7 @@ export function Player({ ...props }) {
   }, [selectedAction, actions, mixer]);
 
   useFrame(() => {
+    // WALK
     orbitRef.current.target = model.position.clone().setY(2.5);
 
     if (movements.current.length && selectedAction !== 'idle') {
@@ -89,6 +93,15 @@ export function Player({ ...props }) {
     positions.applyAxisAngle(new THREE.Vector3(0, 1, 0), orbitRef.current.getAzimuthalAngle());
     model.rotation.y = orbitRef.current.getAzimuthalAngle() + Math.PI;
     model.position.add(positions);
+
+    // ATTACK
+    const isAttackAnimation = attackAnimations.includes(selectedAction);
+    const time = actions[selectedAction]?.time;
+    const duration = actions[selectedAction]?.getClip().duration;
+
+    if ((isAttackAnimation && time > duration - duration * 0.02) || !isAttackAnimation) {
+      attack.current.isAttackInProgress = false;
+    }
   });
 
   return (
@@ -125,24 +138,33 @@ export function Player({ ...props }) {
           movements.current = [...directions.values()];
         }}
         onAttack={() => {
-          setCombo((current) => {
-            switch (current) {
-              case 0:
-                setSelectedAction('small-slash');
-                break;
-              case 1:
-                setSelectedAction('kick');
-                break;
-              case 2:
-                setSelectedAction('spin-slash');
-                break;
+          if (comboResetTimer.current) {
+            clearTimeout(comboResetTimer.current);
+          }
 
-              default:
-                break;
-            }
+          comboResetTimer.current = setTimeout(() => {
+            attack.current.combo = 0;
+          }, 1000);
 
-            return current > 2 ? 0 : ++current;
-          });
+          if (attack.current.isAttackInProgress) return;
+
+          let current = attack.current.combo;
+          switch (current) {
+            case 0:
+              setSelectedAction('small-slash');
+              break;
+            case 1:
+              setSelectedAction('kick');
+              break;
+            case 2:
+              setSelectedAction('spin-slash');
+              break;
+
+            default:
+              break;
+          }
+          attack.current.combo = current >= 2 ? 0 : current + 1;
+          attack.current.isAttackInProgress = true;
         }}
       />
     </>
