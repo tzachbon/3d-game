@@ -1,17 +1,21 @@
+import { useTrimesh } from '@react-three/cannon';
 import { OrbitControls, useAnimations, useFBX } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import React, { useEffect, useRef, useState } from 'react';
 import EventListener from 'react-event-listener';
 import * as THREE from 'three';
+import { lerp } from 'three/src/math/MathUtils';
 import { ASSETS_PATH, MAX_POLAR_ANGLE } from '../helpers';
 
 export function Player({ ...props }) {
   const orbitRef = useRef();
+  const walkClock = useRef(new THREE.Clock());
   const blendDuration = 0.5;
   const [selectedAction, setSelectedAction] = useState();
   const movements = useRef([]);
   const [combo, setCombo] = useState(0);
   const model = useFBX(`${ASSETS_PATH}/player.fbx`);
+  console.log(model);
   const { actions, mixer } = usePlayerAnimations(model);
 
   useEffect(() => {
@@ -19,6 +23,9 @@ export function Player({ ...props }) {
     if (model.scale.x > size) {
       model.scale.multiplyScalar(size);
     }
+
+    // orbitRef.current.dampingFactor = 0.5; // friction
+    orbitRef.current.rotateSpeed = 0.3; // mouse sensitivity
   }, []);
 
   useEffect(() => {
@@ -47,8 +54,7 @@ export function Player({ ...props }) {
   }, [selectedAction, actions, mixer]);
 
   useFrame(() => {
-    const positions = model.position;
-    const speed = 0.05;
+    orbitRef.current.target = model.position.clone().setY(2.5);
 
     if (movements.current.length && selectedAction !== 'idle') {
       setSelectedAction('walk');
@@ -56,25 +62,33 @@ export function Player({ ...props }) {
       setSelectedAction(null);
     }
 
+    const positions = new THREE.Vector3();
+    const verticalSpeed = lerp(0, 0.08, Math.min(walkClock.current.getElapsedTime(), 1));
+    const horizontalSpeed = 0.02;
+
     for (const movement of movements.current) {
       switch (movement) {
         case 'backward':
-          positions.z += -speed;
-          break;
-        case 'right':
-          positions.x += -speed;
-          break;
-        case 'left':
-          positions.x += speed;
+          positions.z += verticalSpeed;
           break;
         case 'forward':
-          positions.z += speed;
+          positions.z += -verticalSpeed;
           break;
+        case 'right':
+          positions.x += horizontalSpeed;
+          break;
+        case 'left':
+          positions.x += -horizontalSpeed;
+          break;
+
         default:
           break;
       }
     }
-    orbitRef.current.target = positions;
+
+    positions.applyAxisAngle(new THREE.Vector3(0, 1, 0), orbitRef.current.getAzimuthalAngle());
+    model.rotation.y = orbitRef.current.getAzimuthalAngle() + Math.PI;
+    model.position.add(positions);
   });
 
   return (
@@ -83,27 +97,35 @@ export function Player({ ...props }) {
       <OrbitControls
         ref={orbitRef}
         maxPolarAngle={MAX_POLAR_ANGLE}
-        maxDistance={22}
+        maxDistance={5}
         enableDamping={false}
         enablePan={false}
       />
       <Controller
         onMoveChanged={({ type, direction }) => {
-          console.log(direction);
-          const set = new Set(movements.current);
+          const directions = new Set(movements.current);
+          const startSize = directions.size;
 
-          if (type === 'end') {
-            set.delete(direction);
-          } else if (type === 'start') {
-            set.add(direction);
+          if (!walkClock.current.running) {
+            walkClock.current.start();
           }
 
-          movements.current = [...set.values()];
+          if (type === 'end') {
+            directions.delete(direction);
+          } else if (type === 'start') {
+            directions.add(direction);
+          }
+
+          if (startSize !== directions.size) {
+            setTimeout(() => {
+              walkClock.current.stop();
+            }, 100);
+          }
+
+          movements.current = [...directions.values()];
         }}
         onAttack={() => {
           setCombo((current) => {
-            // actions.idle.stop();
-
             switch (current) {
               case 0:
                 setSelectedAction('small-slash');
@@ -118,8 +140,6 @@ export function Player({ ...props }) {
               default:
                 break;
             }
-
-            // actions.idle.fadeIn(blendDuration).play();
 
             return current > 2 ? 0 : ++current;
           });
