@@ -1,10 +1,11 @@
 import { usePlane } from '@react-three/cannon';
 import { Reflector, useTexture } from '@react-three/drei';
+import { ASSETS_PATH } from '../helpers';
 
 export function Ground() {
   const [floor, normal] = useTexture([
-    '/assets/textures/ground-texture-skin.jpg',
-    '/assets/textures/ground-texture-color.jpg',
+    `${ASSETS_PATH}/textures/ground-texture-skin.jpg`,
+    `${ASSETS_PATH}/textures/ground-texture-color.jpg`,
   ]);
 
   const [ref] = usePlane(() => ({

@@ -21,7 +21,7 @@ export function Player({ ...props }) {
   });
 
   const [selectedAction, setSelectedAction] = useState();
-  const model = useFBX(`${ASSETS_PATH}/player.fbx`);
+  const model = useFBX(`${ASSETS_PATH}/models/player.fbx`);
   const { actions, mixer } = usePlayerAnimations(model);
 
   useEffect(() => {
@@ -209,7 +209,7 @@ function usePlayerAnimations(model) {
 }
 
 function useAnimationLoader(name) {
-  const animation = useFBX(`${ASSETS_PATH}/animations/${name}.fbx`);
+  const animation = useFBX(`${ASSETS_PATH}/models/animations/${name}.fbx`);
   animation.animations[0].name = name;
 
   return animation;
