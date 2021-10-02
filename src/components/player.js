@@ -1,23 +1,26 @@
 import { OrbitControls, useAnimations, useFBX } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import React, { useEffect, useRef, useState } from 'react';
-import EventListener from 'react-event-listener';
 import * as THREE from 'three';
 import { lerp } from 'three/src/math/MathUtils';
 import { ASSETS_PATH, MAX_POLAR_ANGLE } from '../helpers';
+import { Controller } from './controller';
 
-const loopAnimations = ['idle', 'walk'];
+const loopAnimations = ['idle', 'walk', 'run'];
 const attackAnimations = ['small-slash', 'kick', 'spin-slash'];
+const blendDuration = 0.5;
 
 export function Player({ ...props }) {
   const orbitRef = useRef();
-  const walkClock = useRef(new THREE.Clock());
-  const comboResetTimer = useRef();
+  const player = useRef({
+    walkClock: new THREE.Clock(),
+    comboResetTimer: null,
+    movements: [],
+    isRunning: false,
+    attack: { combo: 0, isAttackInProgress: false },
+  });
 
-  const blendDuration = 0.5;
   const [selectedAction, setSelectedAction] = useState();
-  const movements = useRef([]);
-  const attack = useRef({ combo: 0, isAttackInProgress: false });
   const model = useFBX(`${ASSETS_PATH}/player.fbx`);
   const { actions, mixer } = usePlayerAnimations(model);
 
@@ -57,36 +60,42 @@ export function Player({ ...props }) {
   }, [selectedAction, actions, mixer]);
 
   useFrame(() => {
-    // WALK
     orbitRef.current.target = model.position.clone().setY(2.5);
 
-    if (movements.current.length && selectedAction !== 'idle') {
-      setSelectedAction('walk');
-    } else if (!movements.current.length && selectedAction === 'walk') {
+    // WALK
+    if (player.current.movements.length) {
+      setSelectedAction(player.current.isRunning ? 'run' : 'walk');
+    } else if (!player.current.movements.length && !player.current.attack.isAttackInProgress) {
       setSelectedAction(null);
     }
 
     const positions = new THREE.Vector3();
-    const verticalSpeed = lerp(0, 0.08, Math.min(walkClock.current.getElapsedTime(), 1));
+    const verticalSpeed = lerp(
+      0,
+      player.current.isRunning ? 0.15 : 0.08,
+      Math.min(player.current.walkClock.getElapsedTime(), 1),
+    );
     const horizontalSpeed = 0.02;
 
-    for (const movement of movements.current) {
-      switch (movement) {
-        case 'backward':
-          positions.z += verticalSpeed;
-          break;
-        case 'forward':
-          positions.z += -verticalSpeed;
-          break;
-        case 'right':
-          positions.x += horizontalSpeed;
-          break;
-        case 'left':
-          positions.x += -horizontalSpeed;
-          break;
+    if (!player.current.attack.isAttackInProgress) {
+      for (const movement of player.current.movements) {
+        switch (movement) {
+          case 'backward':
+            positions.z += verticalSpeed;
+            break;
+          case 'forward':
+            positions.z += -verticalSpeed;
+            break;
+          case 'right':
+            positions.x += horizontalSpeed;
+            break;
+          case 'left':
+            positions.x += -horizontalSpeed;
+            break;
 
-        default:
-          break;
+          default:
+            break;
+        }
       }
     }
 
@@ -100,7 +109,7 @@ export function Player({ ...props }) {
     const duration = actions[selectedAction]?.getClip().duration;
 
     if ((isAttackAnimation && time > duration - duration * 0.02) || !isAttackAnimation) {
-      attack.current.isAttackInProgress = false;
+      player.current.attack.isAttackInProgress = false;
     }
   });
 
@@ -115,12 +124,18 @@ export function Player({ ...props }) {
         enablePan={false}
       />
       <Controller
+        onSpeedChanged={({ type, selected }) => {
+          if (type === 'run') {
+            player.current.isRunning = selected;
+            setSelectedAction(selected ? 'run' : null);
+          }
+        }}
         onMoveChanged={({ type, direction }) => {
-          const directions = new Set(movements.current);
+          const directions = new Set(player.current.movements);
           const startSize = directions.size;
 
-          if (!walkClock.current.running) {
-            walkClock.current.start();
+          if (!player.current.walkClock.running) {
+            player.current.walkClock.start();
           }
 
           if (type === 'end') {
@@ -131,24 +146,24 @@ export function Player({ ...props }) {
 
           if (startSize !== directions.size) {
             setTimeout(() => {
-              walkClock.current.stop();
+              player.current.walkClock.stop();
             }, 100);
           }
 
-          movements.current = [...directions.values()];
+          player.current.movements = [...directions.values()];
         }}
         onAttack={() => {
-          if (comboResetTimer.current) {
-            clearTimeout(comboResetTimer.current);
+          if (player.current.comboResetTimer) {
+            clearTimeout(player.current.comboResetTimer);
           }
 
-          comboResetTimer.current = setTimeout(() => {
-            attack.current.combo = 0;
+          player.current.comboResetTimer = setTimeout(() => {
+            player.current.attack.combo = 0;
           }, 1000);
 
-          if (attack.current.isAttackInProgress) return;
+          if (player.current.attack.isAttackInProgress) return;
 
-          let current = attack.current.combo;
+          let current = player.current.attack.combo;
           switch (current) {
             case 0:
               setSelectedAction('small-slash');
@@ -163,8 +178,8 @@ export function Player({ ...props }) {
             default:
               break;
           }
-          attack.current.combo = current >= 2 ? 0 : current + 1;
-          attack.current.isAttackInProgress = true;
+          player.current.attack.combo = current >= 2 ? 0 : current + 1;
+          player.current.attack.isAttackInProgress = true;
         }}
       />
     </>
@@ -177,9 +192,11 @@ function usePlayerAnimations(model) {
   const smallSlash = useAnimationLoader('small-slash');
   const snipSlash = useAnimationLoader('spin-slash');
   const walk = useAnimationLoader('walk');
+  const run = useAnimationLoader('run');
 
   return useAnimations(
     [
+      ...run.animations,
       ...idle.animations,
       ...kick.animations,
       ...smallSlash.animations,
@@ -195,62 +212,4 @@ function useAnimationLoader(name) {
   animation.animations[0].name = name;
 
   return animation;
-}
-
-function Controller({ onAttack, onMoveChanged } = {}) {
-  const onKeyDown = (event) => {
-    event.preventDefault();
-
-    switch (event.key) {
-      case 'w':
-      case 'a':
-      case 's':
-      case 'd':
-        const movementMap = {
-          w: 'forward',
-          s: 'backward',
-          a: 'left',
-          d: 'right',
-        };
-        onMoveChanged?.({ type: 'start', direction: movementMap[event.key] });
-        break;
-
-      default:
-        break;
-    }
-  };
-
-  const onKeyUp = (event) => {
-    event.preventDefault();
-
-    switch (event.key) {
-      case 'w':
-      case 'a':
-      case 's':
-      case 'd':
-        const movementMap = {
-          w: 'forward',
-          s: 'backward',
-          a: 'left',
-          d: 'right',
-        };
-        onMoveChanged?.({ type: 'end', direction: movementMap[event.key] });
-        break;
-
-      default:
-        break;
-    }
-  };
-
-  function onClick(event) {
-    event.preventDefault();
-    onAttack();
-  }
-
-  return (
-    <>
-      <EventListener target='window' onKeyDown={onKeyDown} onKeyUp={onKeyUp} />
-      <EventListener target={document.querySelector('.main-canvas')} onClick={onClick} />
-    </>
-  );
 }
