@@ -17,6 +17,7 @@ export function Player({ ...props }) {
     comboResetTimer: null,
     movements: [],
     isRunning: false,
+    isWalking: false,
     attack: { combo: 0, isAttackInProgress: false },
   });
 
@@ -38,19 +39,17 @@ export function Player({ ...props }) {
   useEffect(() => {
     const selected = selectedAction || 'idle';
     const animation = actions[selected];
-    const isIdle = selected === 'idle';
 
-    if (!isIdle) {
-      mixer.addEventListener('finished', (event) => {
-        setSelectedAction(null);
-      });
-    }
-
+    mixer.addEventListener('finished', (event) => {
+      if (attackAnimations.some((name) => actions[name] === event.action)) {
+        setSelectedAction('idle');
+      }
+    });
     animation
       ?.reset()
       .fadeIn(loopAnimations.includes(selected) ? blendDuration : 0.1)
       .setLoop(loopAnimations.includes(selected) ? THREE.LoopRepeat : THREE.LoopOnce)
-      .setEffectiveTimeScale(loopAnimations.includes(selected) ? 1 : 1.2)
+      .setEffectiveTimeScale(attackAnimations.includes(selected) ? 1.4 : 1)
       .play();
 
     animation.clampWhenFinished = true;
@@ -62,12 +61,11 @@ export function Player({ ...props }) {
 
   useFrame(() => {
     orbitRef.current.target = model.position.clone().setY(2.5);
-
     // WALK
-    if (player.current.movements.length) {
+    if (player.current.isWalking && !player.current.attack.isAttackInProgress) {
       setSelectedAction(player.current.isRunning ? 'run' : 'walk');
-    } else if (!player.current.movements.length && !player.current.attack.isAttackInProgress) {
-      setSelectedAction(null);
+    } else if (!player.current.isWalking && !player.current.attack.isAttackInProgress) {
+      setSelectedAction('idle');
     }
 
     const positions = new THREE.Vector3();
@@ -105,11 +103,14 @@ export function Player({ ...props }) {
     model.position.add(positions);
 
     // ATTACK
-    const isAttackAnimation = attackAnimations.includes(selectedAction);
     const time = actions[selectedAction]?.time;
     const duration = actions[selectedAction]?.getClip().duration;
 
-    if ((isAttackAnimation && time > duration - duration * 0.02) || !isAttackAnimation) {
+    if (
+      !selectedAction ||
+      loopAnimations.includes(selectedAction) ||
+      time > duration - duration * 0.01
+    ) {
       player.current.attack.isAttackInProgress = false;
     }
   });
@@ -126,7 +127,7 @@ export function Player({ ...props }) {
       />
       <Controller
         onSpeedChanged={({ type, selected }) => {
-          if (type === 'run') {
+          if (type === 'run' && player.current.isWalking) {
             player.current.isRunning = selected;
             setSelectedAction(selected ? 'run' : null);
           }
@@ -152,6 +153,7 @@ export function Player({ ...props }) {
           }
 
           player.current.movements = [...directions.values()];
+          player.current.isWalking = Boolean(player.current.movements.length);
         }}
         onAttack={() => {
           if (player.current.comboResetTimer) {
