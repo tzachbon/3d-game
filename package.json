@@ -7,9 +7,13 @@
     "@react-three/cannon": "1.1.1",
     "@react-three/drei": "^7.12.3",
     "@react-three/fiber": "6.1.2",
+    "html5-joystick": "^1.1.6",
     "react": "17.0.2",
+    "react-device-detect": "^2.0.0",
     "react-dom": "17.0.2",
     "react-event-listener": "^0.6.6",
+    "react-full-screen": "^1.1.0",
+    "react-joystick-component": "^1.4.0",
     "react-scripts": "4.0.3",
     "three": "0.128.0"
   },

@@ -25,9 +25,20 @@ a {
   box-sizing: border-box;
 }
 
-#root {
+#root,
+.game-container,
+.main-canvas {
   height: 100vh;
   width: 100vw;
+  overflow: hidden;
+}
+
+.joystick > div {
+  position: absolute;
+  z-index: 1;
+  bottom: 2vh;
+  left: 2vw;
+  touch-action: none;
 }
 
 @media (max-width: 768px) {

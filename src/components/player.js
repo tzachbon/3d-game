@@ -19,6 +19,7 @@ export function Player({ ...props }) {
     isRunning: false,
     isWalking: false,
     attack: { combo: 0, isAttackInProgress: false },
+    cordsToMove: null,
   });
 
   const [selectedAction, setSelectedAction] = useState();
@@ -77,23 +78,29 @@ export function Player({ ...props }) {
     const horizontalSpeed = 0.02;
 
     if (!player.current.attack.isAttackInProgress) {
-      for (const movement of player.current.movements) {
-        switch (movement) {
-          case 'backward':
-            positions.z += verticalSpeed;
-            break;
-          case 'forward':
-            positions.z += -verticalSpeed;
-            break;
-          case 'right':
-            positions.x += horizontalSpeed;
-            break;
-          case 'left':
-            positions.x += -horizontalSpeed;
-            break;
+      if (player.current.cordsToMove) {
+        const [x, y] = player.current.cordsToMove;
+        positions.x = (x / 100) * verticalSpeed;
+        positions.z = (-y / 100) * verticalSpeed;
+      } else {
+        for (const movement of player.current.movements) {
+          switch (movement) {
+            case 'backward':
+              positions.z += verticalSpeed;
+              break;
+            case 'forward':
+              positions.z += -verticalSpeed;
+              break;
+            case 'right':
+              positions.x += horizontalSpeed;
+              break;
+            case 'left':
+              positions.x += -horizontalSpeed;
+              break;
 
-          default:
-            break;
+            default:
+              break;
+          }
         }
       }
     }
@@ -132,7 +139,7 @@ export function Player({ ...props }) {
             setSelectedAction(selected ? 'run' : null);
           }
         }}
-        onMoveChanged={({ type, direction }) => {
+        onMoveChanged={({ type, direction, cords }) => {
           const directions = new Set(player.current.movements);
           const startSize = directions.size;
 
@@ -153,7 +160,10 @@ export function Player({ ...props }) {
           }
 
           player.current.movements = [...directions.values()];
-          player.current.isWalking = Boolean(player.current.movements.length);
+          player.current.cordsToMove = cords;
+          player.current.isWalking = Boolean(
+            player.current.movements.length || player.current.cordsToMove,
+          );
         }}
         onAttack={() => {
           if (player.current.comboResetTimer) {
