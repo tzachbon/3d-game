@@ -32,6 +32,7 @@ export function Player({ ...props }) {
 
     // orbitRef.current.dampingFactor = 0.5; // friction
     orbitRef.current.rotateSpeed = 0.3; // mouse sensitivity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
