@@ -27,7 +27,8 @@ a {
 
 #root,
 .game-container,
-.main-canvas {
+.main-canvas,
+.fullscreen {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
@@ -49,4 +50,20 @@ a {
   body {
     position: relative;
   }
+}
+
+.button-controller {
+  position: absolute;
+  z-index: 1;
+  margin: 1rem;
+}
+
+.fullscreen-button {
+  background: rgb(223, 166, 45);
+  border: 2px solid salmon;
+  border-radius: 1rem;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+  box-shadow: 0 5px 5px 0 #000;
+  cursor: pointer;
 }

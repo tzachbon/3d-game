@@ -5,7 +5,15 @@ import { isMobile } from 'react-device-detect';
 
 function App() {
   const [isLandscape, setIsLandscape] = useState(checkIsLandscapeOrientation());
-  const handle = useFullScreenHandle();
+  const fullscreenHandler = useFullScreenHandle();
+
+  function toggleFullscreen() {
+    if (fullscreenHandler.active) {
+      fullscreenHandler.exit();
+    } else {
+      fullscreenHandler.enter();
+    }
+  }
 
   useEffect(() => {
     window.matchMedia('(orientation: landscape)').addEventListener('change', () => {
@@ -15,18 +23,12 @@ function App() {
 
   return isLandscape ? (
     <div className='game-container'>
-      {navigator.userAgent.match(new RegExp('iphone', 'gi')) ? (
+      <FullScreen handle={fullscreenHandler}>
+        <button className='button-controller fullscreen-button' onClick={toggleFullscreen}>
+          {fullscreenHandler.active ? 'Minimize' : 'Fullscreen'}
+        </button>
         <Game showScreenControllers={isMobile} />
-      ) : (
-        <>
-          <button onClick={handle.enter}>Click to start</button>
-          <div style={{ display: handle.active ? 'block' : 'none' }}>
-            <FullScreen handle={handle}>
-              <Game showScreenControllers={isMobile} />
-            </FullScreen>
-          </div>
-        </>
-      )}
+      </FullScreen>
     </div>
   ) : (
     <span className='orientation-container'>Make it landscape; ROTATE!</span>
