@@ -8,7 +8,7 @@ import { ScreenControllerProvider } from './screen-controller';
 import { Player } from './player';
 
 function Cube(props) {
-  const [ref] = useBox(() => ({ mass: 1, position: [0.5, 15, 0], ...props }));
+  const [ref] = useBox(() => ({ mass: 1, position: [3.5, 15, 1], ...props }));
   return (
     <mesh ref={ref}>
       <boxBufferGeometry />
