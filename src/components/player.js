@@ -105,9 +105,20 @@ export function Player({ ...props }) {
       }
     }
 
+    const isStanding = positions.toArray().every((pos) => pos === 0);
+
     positions.applyAxisAngle(new THREE.Vector3(0, 1, 0), orbitRef.current.getAzimuthalAngle());
-    model.rotation.y = orbitRef.current.getAzimuthalAngle() + Math.PI;
     model.position.add(positions);
+
+    if (!isStanding) {
+      const targetAngel = orbitRef.current.getAzimuthalAngle() + Math.PI;
+
+      model.rotation.y = lerp(
+        model.rotation.y,
+        targetAngel,
+        Math.min(player.current.walkClock.getElapsedTime(), 1),
+      );
+    }
 
     // ATTACK
     const time = actions[selectedAction]?.time;
